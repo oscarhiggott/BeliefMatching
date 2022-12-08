@@ -8,7 +8,7 @@ model.
 Belief matching algorithm has the same worst-case complexity as minimum-weight perfect matching, and the average 
 expected complexity is roughly linear in the size of the decoding problem (Tanner graph).
 
-However, note that this particular implementation is much (>100x) slower than just using the standard pymatching 
+However, note that this particular implementation is much (>100x) slower than just using the pymatching (v2) 
 decoder alone, since it has not been optimised for performance.
 For example, for each shot, belief propagation is run on the full Tanner graph (stim `DetectorErrorModel`) with 
 the output used to construct a new instance of a pymatching `Matching` object.
