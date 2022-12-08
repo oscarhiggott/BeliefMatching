@@ -116,12 +116,12 @@ def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemM
 
 
 class BeliefMatching:
-    def __init__(self, model: stim.DetectorErrorModel, bp_iters: int = 20):
+    def __init__(self, model: stim.DetectorErrorModel, max_bp_iters: int = 20):
         self.model = model
         self.matrices = detector_error_model_to_check_matrices(model)
         self.bpd = bp_decoder(
             self.matrices.check_matrix,
-            max_iter=bp_iters,
+            max_iter=max_bp_iters,
             bp_method="product_sum",
             channel_probs=self.matrices.priors
         )
@@ -143,16 +143,3 @@ class BeliefMatching:
             use_virtual_boundary_node=True
         )
         return matching.decode(syndrome)
-
-
-if __name__ == "__main__":
-    circuit = stim.Circuit.generated(
-        "surface_code:rotated_memory_x",
-        rounds=10,
-        distance=7,
-        before_round_data_depolarization=0.01
-    )
-
-    dem = circuit.detector_error_model(decompose_errors=True)
-    # print(dem.flattened())
-    detector_error_model_to_check_matrices(dem)

@@ -1,6 +1,5 @@
 import os
 from typing import List
-import time
 
 import pymatching
 from scipy.sparse import csc_matrix
@@ -104,7 +103,3 @@ def test_belief_matching():
 
     assert num_mistakes_bm == 7
     assert num_mistakes_pm == 11
-
-
-if __name__ == "__main__":
-    generate_shot_data()
