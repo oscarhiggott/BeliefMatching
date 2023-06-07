@@ -85,7 +85,7 @@ samples = sinter.collect(
 A complete example using sinter (including the definition of `generate_example_tasks` and plotting) can be found in the 
 `examples/surface_code_threshold.py` file.
 
-Note that this sinter integration uses `sinter.Decoder` which, as of 8th December 2022, is only available in in the 
+Note that this sinter integration uses `sinter.Decoder` which, as of Sinter v1.10, is only available in the 
 latest pre-release distributions on PyPI. Therefore the sinter dependency is set as `sinter>=1.11.dev1670280005` in 
 the `setup.py`.
 
