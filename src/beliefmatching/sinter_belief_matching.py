@@ -54,7 +54,7 @@ class BeliefMatchingSinterDecoder(Decoder):
         dem = stim.DetectorErrorModel.from_file(dem_path)
         bm = BeliefMatching(dem, max_bp_iters=self.max_bp_iters)
         shots = stim.read_shot_data_file(path=dets_b8_in_path, format="b8", num_detectors=dem.num_detectors)
-        predictions = np.zeros((shots.shape[0], dem.num_observables), dtype=np.uint8)
+        predictions = np.zeros((shots.shape[0], dem.num_observables), dtype=bool)
         for i in range(shots.shape[0]):
             predictions[i, :] = bm.decode(shots[i, :])
         stim.write_shot_data_file(data=predictions, path=obs_predictions_b8_out_path, format="b8",

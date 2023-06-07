@@ -5,8 +5,10 @@ import pymatching
 from scipy.sparse import csc_matrix
 import stim
 import numpy as np
+import sinter
 
-from beliefmatching import iter_set_xor, dict_to_csc_matrix, detector_error_model_to_check_matrices, BeliefMatching
+from beliefmatching import iter_set_xor, dict_to_csc_matrix, detector_error_model_to_check_matrices, BeliefMatching, \
+    BeliefMatchingSinterDecoder
 
 test_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -79,7 +81,7 @@ def generate_shot_data():
                               num_detectors=dem.num_detectors, num_observables=dem.num_observables, format="b8")
 
 
-def test_belief_matching():
+def test_belief_matching_surface_code():
     dem = stim.DetectorErrorModel.from_file(os.path.join(test_dir, "surface_code_rotated_memory_x_d_7_p_0.007.dem"))
     bm = BeliefMatching(dem)
     matching = pymatching.Matching.from_detector_error_model(dem)
@@ -103,3 +105,23 @@ def test_belief_matching():
 
     assert num_mistakes_bm == 7
     assert num_mistakes_pm == 11
+
+
+def generate_trivial_circuit_task():
+        yield sinter.Task(
+            circuit=stim.Circuit("""X_ERROR(0.1) 0
+M 0
+DETECTOR rec[-1]
+OBSERVABLE_INCLUDE(4) rec[-1]"""),
+        )
+
+
+def test_belief_matching_sinter_multiple_obs():
+    sinter.collect(
+        num_workers=1,
+        max_shots=1_000_000,
+        max_errors=1000,
+        tasks=generate_trivial_circuit_task(),
+        decoders=['beliefmatching'],
+        custom_decoders={'beliefmatching': BeliefMatchingSinterDecoder()}
+    )

@@ -123,7 +123,8 @@ class BeliefMatching:
             self.matrices.check_matrix,
             max_iter=max_bp_iters,
             bp_method="product_sum",
-            channel_probs=self.matrices.priors
+            channel_probs=self.matrices.priors,
+            input_vector_type="syndrome"
         )
 
     def decode(self, syndrome: np.ndarray) -> np.ndarray:
