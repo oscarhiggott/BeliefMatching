@@ -1,4 +1,4 @@
-from typing import List, FrozenSet, Dict, Tuple
+from typing import List, FrozenSet, Dict, Tuple, Union
 from dataclasses import dataclass
 
 from ldpc import bp_decoder
@@ -18,6 +18,23 @@ def iter_set_xor(set_list: List[List[int]]) -> FrozenSet[int]:
 
 
 def dict_to_csc_matrix(elements_dict: Dict[int, FrozenSet[int]], shape: Tuple[int, int]) -> csc_matrix:
+    """
+    Constructs a `scipy.sparse.csc_matrix` check matrix from a dictionary `elements_dict` giving the indices of nonzero
+    rows in each column.
+
+    Parameters
+    ----------
+    elements_dict : dict[int, frozenset[int]]
+        A dictionary giving the indices of nonzero rows in each column. `elements_dict[i]` is a frozenset of ints
+        giving the indices of nonzero rows in column `i`.
+    shape : Tuple[int, int]
+        The dimensions of the matrix to be returned
+
+    Returns
+    -------
+    scipy.sparse.csc_matrix
+        The `scipy.sparse.csc_matrix` check matrix defined by `elements_dict` and `shape`
+    """
     nnz = sum(len(v) for k, v in elements_dict.items())
     data = np.ones(nnz, dtype=np.uint8)
     row_ind = np.zeros(nnz, dtype=np.int64)
@@ -42,6 +59,18 @@ class DemMatrices:
 
 
 def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemMatrices:
+    """
+    Convert a `stim.DetectorErrorModel` into a `DemMatrices` object.
+
+    Parameters
+    ----------
+    dem : stim.DetectorErrorModel
+        A stim DetectorErrorModel
+    Returns
+    -------
+    DemMatrices
+        A collection of matrices representing the stim DetectorErrorModel
+    """
     hyperedge_ids: Dict[FrozenSet[int], int] = {}
     edge_ids: Dict[FrozenSet[int], int] = {}
     hyperedge_obs_map: Dict[int, FrozenSet[int]] = {}
@@ -116,31 +145,204 @@ def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemM
 
 
 class BeliefMatching:
-    def __init__(self, model: stim.DetectorErrorModel, max_bp_iters: int = 20):
-        self.model = model
-        self.matrices = detector_error_model_to_check_matrices(model)
-        self.bpd = bp_decoder(
-            self.matrices.check_matrix,
-            max_iter=max_bp_iters,
-            bp_method="product_sum",
-            channel_probs=self.matrices.priors,
-            input_vector_type="syndrome"
+    def __init__(
+            self,
+            model: Union[stim.Circuit, stim.DetectorErrorModel],
+            max_bp_iters: int = 20,
+            bp_method: str = "product_sum",
+            **kwargs
+    ):
+        """
+        Construct a BeliefMatching object from a `stim.Circuit` or `stim.DetectorErrorModel`
+
+        Parameters
+        ----------
+        model : stim.Circuit or stim.DetectorErrorModel
+            A stim.Circuit or a stim.DetectorErrorModel. If a stim.Circuit is provided, it will be converted
+            into a stim.DetectorErrorModel using `stim.Circuit.detector_error_model(decompose_errors=True)`.
+            If a `stim.DetectorErrorModel` is provided it is important that its hyperedges are decomposed
+            into edges (using `decompose_errors=True`) for BeliefMatching to provide improved accuracy over
+            a standard (faster) MWPM decoder.
+        max_bp_iters : int
+            The maximum number of interations of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `max_iter` argument. Default 20
+        bp_method : str
+            The method of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `bp_method` argument. Options include "product_sum",
+             "minimum_sum", "product_sum_log" and "minimum_sum_log" (see https://github.com/quantumgizmos/ldpc
+             for details). Default is "product_sum"
+        kwargs
+            Additional keyword arguments are passed to `ldpc.bp_decoder`
+        """
+        if isinstance(model, stim.Circuit):
+            model = model.detector_error_model(decompose_errors=True)
+        self._initialise_from_detector_error_model(
+            model=model,
+            max_bp_iters=max_bp_iters,
+            bp_method=bp_method,
+            **kwargs
         )
 
+    def _initialise_from_detector_error_model(
+            self,
+            model: stim.DetectorErrorModel,
+            *,
+            max_bp_iters: int = 20,
+            bp_method: str = "product_sum",
+            **kwargs
+            ):
+        self._model = model
+        self._matrices = detector_error_model_to_check_matrices(self._model)
+        self._bpd = bp_decoder(
+            self._matrices.check_matrix,
+            max_iter=max_bp_iters,
+            bp_method=bp_method,
+            channel_probs=self._matrices.priors,
+            input_vector_type="syndrome",
+            **kwargs
+        )
+
+    @classmethod
+    def from_detector_error_model(
+            cls,
+            model: stim.DetectorErrorModel,
+            *,
+            max_bp_iters: int = 20,
+            bp_method: str = "product_sum",
+            **kwargs
+    ) -> "BeliefMatching":
+        """
+        Construct a BeliefMatching object from a `stim.DetectorErrorModel`
+
+        Parameters
+        ----------
+        model : stim.DetectorErrorModel
+            A `stim.DetectorErrorModel`. It is important that the hyperedges are already decomposed
+            into edges (using `decompose_errors=True`) for BeliefMatching to provide improved accuracy over
+            a standard (faster) MWPM decoder.
+        max_bp_iters : int
+            The maximum number of interations of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `max_iter` argument. Default 20
+        bp_method : str
+            The method of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `bp_method` argument. Options include "product_sum",
+             "minimum_sum", "product_sum_log" and "minimum_sum_log" (see https://github.com/quantumgizmos/ldpc
+             for details). Default is "product_sum"
+        kwargs
+            Additional keyword arguments are passed to `ldpc.bp_decoder`
+
+
+        Returns
+        -------
+        BeliefMatching
+            The BeliefMatching object for decoding using `model`
+        """
+        bm = cls.__new__(cls)
+        bm._initialise_from_detector_error_model(
+            model=model,
+            max_bp_iters=max_bp_iters,
+            bp_method=bp_method,
+            **kwargs
+        )
+        return bm
+
+    @classmethod
+    def from_stim_circuit(
+            cls,
+            circuit: stim.Circuit,
+            *,
+            max_bp_iters: int = 20,
+            bp_method: str = "product_sum",
+            **kwargs
+    ) -> "BeliefMatching":
+        """
+        Construct a BeliefMatching object from a `stim.Circuit`
+
+        Parameters
+        ----------
+        circuit : stim.Circuit
+            A stim.Circuit. The circuit will be converted into a stim.DetectorErrorModel using
+            `stim.Circuit.detector_error_model(decompose_errors=True)`.
+        max_bp_iters : int
+            The maximum number of interations of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `max_iter` argument. Default 20
+        bp_method : str
+            The method of belief-propagation to use. Passed to
+            `ldpc.bp_decoder` as the `bp_method` argument. Options include "product_sum",
+             "minimum_sum", "product_sum_log" and "minimum_sum_log" (see https://github.com/quantumgizmos/ldpc
+             for details). Default is "product_sum"
+        kwargs
+            Additional keyword arguments are passed to `ldpc.bp_decoder`
+
+
+        Returns
+        -------
+        BeliefMatching
+            The BeliefMatching object for decoding using `model`
+        """
+        bm = cls.__new__(cls)
+        model = circuit.detector_error_model(decompose_errors=True)
+        bm._initialise_from_detector_error_model(
+            model=model,
+            max_bp_iters=max_bp_iters,
+            bp_method=bp_method,
+            **kwargs
+        )
+        return bm
+
     def decode(self, syndrome: np.ndarray) -> np.ndarray:
-        corr = self.bpd.decode(syndrome)
-        if self.bpd.converge:
-            return (self.matrices.observables_matrix @ corr) % 2
-        llrs = self.bpd.log_prob_ratios
+        """
+        Decode the syndrome and return a prediction of which observables were flipped
+
+        Parameters
+        ----------
+        syndrome : np.ndarray
+            A single shot of syndrome data. This should be a binary array with a length equal to the
+            number of detectors in the `stim.Circuit` or `stim.DetectorErrorModel`. E.g. the syndrome might be
+            one row of shot data sampled from a `stim.CompiledDetectorSampler`.
+
+        Returns
+        -------
+        np.ndarray
+            A binary numpy array `predictions` which predicts which observables were flipped.
+            Its length is equal to the number of observables in the `stim.Circuit` or `stim.DetectorErrorModel`.
+            `predictions[i]` is 1 if the decoder predicts observable `i` was flipped and 0 otherwise.
+        """
+        corr = self._bpd.decode(syndrome)
+        if self._bpd.converge:
+            return (self._matrices.observables_matrix @ corr) % 2
+        llrs = self._bpd.log_prob_ratios
         ps_h = 1 / (1 + np.exp(llrs))
-        ps_e = self.matrices.hyperedge_to_edge_matrix @ ps_h
+        ps_e = self._matrices.hyperedge_to_edge_matrix @ ps_h
         eps = 1e-14
         ps_e[ps_e > 1 - eps] = 1 - eps
         ps_e[ps_e < eps] = eps
         matching = pymatching.Matching.from_check_matrix(
-            self.matrices.edge_check_matrix,
+            self._matrices.edge_check_matrix,
             weights=-np.log(ps_e),
-            faults_matrix=self.matrices.edge_observables_matrix,
+            faults_matrix=self._matrices.edge_observables_matrix,
             use_virtual_boundary_node=True
         )
         return matching.decode(syndrome)
+
+    def decode_batch(self, shots: np.ndarray) -> np.ndarray:
+        """
+        Decode a batch of shots of syndrome data. This is just a helper method, equivalent to iterating over each
+        shot and calling `BeliefMatching.decode` on it.
+
+        Parameters
+        ----------
+        shots : np.ndarray
+            A binary numpy array of dtype `np.uint8` or `bool` with shape `(num_shots, num_detectors)`, where
+            here `num_shots` is the number of shots and `num_detectors` is the number of detectors in the `stim.Circuit` or `stim.DetectorErrorModel`.
+
+        Returns
+        -------
+        np.ndarray
+            A 2D numpy array `predictions` of dtype bool, where `predictions[i, :]` is the output of
+            `self.decode(shots[i, :])`.
+        """
+        predictions = np.zeros((shots.shape[0], self._matrices.observables_matrix.shape[0]), dtype=bool)
+        for i in range(shots.shape[0]):
+            predictions[i, :] = self.decode(shots[i, :])
+        return predictions

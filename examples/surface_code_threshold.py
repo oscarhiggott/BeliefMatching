@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from beliefmatching import BeliefMatchingSinterDecoder
 
 
-# Generates surface code circuit tasks using Stim's circuit generation.
+# Generates surface code circuit tasks
 def generate_example_tasks():
     for p in [0.006, 0.007, 0.008, 0.009, 0.01]:
         for d in [3, 5, 7]:
@@ -27,27 +27,33 @@ def generate_example_tasks():
 
 
 def main():
-    # Collect the samples (takes a few minutes).
+    # Collect the samples for beliefmatching
     samples = sinter.collect(
         num_workers=4,
         max_shots=1_000_000,
         max_errors=1000,
         tasks=generate_example_tasks(),
         decoders=['beliefmatching'],
-        custom_decoders={'beliefmatching': BeliefMatchingSinterDecoder()}
+        custom_decoders={'beliefmatching': BeliefMatchingSinterDecoder()},
+        print_progress=True
     )
 
-    # Print samples as CSV data.
-    print(sinter.CSV_HEADER)
-    for sample in samples:
-        print(sample.to_csv_line())
-
-    # Render a matplotlib plot of the data.
+    # Also collect samples for pymatching, for comparison. Since pymatching is much faster we will
+    # collect more shots.
+    samples += sinter.collect(
+        num_workers=4,
+        max_shots=10_000_000,
+        max_errors=10_000,
+        tasks=generate_example_tasks(),
+        decoders=['pymatching'],
+        print_progress=True
+    )
+    # Plot the data
     fig, ax = plt.subplots(1, 1)
     sinter.plot_error_rate(
         ax=ax,
         stats=samples,
-        group_func=lambda stat: f"Rotated Surface Code d={stat.json_metadata['d']}",
+        group_func=lambda stat: f"{stat.decoder}, d={stat.json_metadata['d']}",
         x_func=lambda stat: stat.json_metadata['p'],
     )
     ax.loglog()
@@ -56,14 +62,8 @@ def main():
     ax.set_ylabel('Logical Error Probability (per shot)')
     ax.set_xlabel('Physical Error Rate')
     ax.legend()
-
-    # Save to file and also open in a window.
-    fig.savefig('plot.png')
     plt.show()
 
 
-# NOTE: This is actually necessary! If the code inside 'main()' was at the
-# module level, the multiprocessing children spawned by sinter.collect would
-# also attempt to run that code.
 if __name__ == '__main__':
     main()

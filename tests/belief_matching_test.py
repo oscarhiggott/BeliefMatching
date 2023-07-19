@@ -70,6 +70,7 @@ def generate_shot_data():
         after_reset_flip_probability=p,
         after_clifford_depolarization=p
     )
+    circuit.to_file(f"surface_code_rotated_memory_x_d_{d}_p_{p}.stim")
     dem = circuit.detector_error_model(decompose_errors=True)
     dem.to_file(f"surface_code_rotated_memory_x_d_{d}_p_{p}.dem")
 
@@ -82,10 +83,15 @@ def generate_shot_data():
 
 
 def test_belief_matching_surface_code():
+    circuit = stim.Circuit.from_file(os.path.join(test_dir, "surface_code_rotated_memory_x_d_7_p_0.007.stim"))
     dem = stim.DetectorErrorModel.from_file(os.path.join(test_dir, "surface_code_rotated_memory_x_d_7_p_0.007.dem"))
-    bm = BeliefMatching(dem)
-    matching = pymatching.Matching.from_detector_error_model(dem)
 
+    bm_dem_init = BeliefMatching(dem, max_bp_iters=20, bp_method="product_sum")
+    bm_dem_class = BeliefMatching.from_detector_error_model(dem, max_bp_iters=20, bp_method="product_sum")
+    bm_circuit_init = BeliefMatching(circuit, max_bp_iters=20, bp_method="product_sum")
+    bm_circuit_class = BeliefMatching.from_stim_circuit(circuit, max_bp_iters=20, bp_method="product_sum")
+
+    matching = pymatching.Matching.from_detector_error_model(dem)
     shot_data = stim.read_shot_data_file(
         path=os.path.join(test_dir, "surface_code_rotated_memory_x_d_7_p_0.007_500_shots.b8"), format="b8",
         num_detectors=dem.num_detectors, num_observables=dem.num_observables)
@@ -93,18 +99,22 @@ def test_belief_matching_surface_code():
     shots = shot_data[:, 0:dem.num_detectors]
     observables = shot_data[:, dem.num_detectors:]
 
-    num_mistakes_bm = 0
-    num_mistakes_pm = 0
-
-    for i in range(shots.shape[0]):
-        predicted_obs_bm = bm.decode(shots[i, :])
-        predicted_obs_pm = matching.decode(shots[i, :])
-        actual_obs = observables[i, :]
-        num_mistakes_bm += not np.array_equal(actual_obs, predicted_obs_bm)
-        num_mistakes_pm += not np.array_equal(actual_obs, predicted_obs_pm)
-
-    assert num_mistakes_bm == 7
+    predicted_observables = matching.decode_batch(shots)
+    num_mistakes_pm = np.sum(np.any(predicted_observables != observables, axis=1))
     assert num_mistakes_pm == 11
+
+    for bm in (bm_dem_init, bm_dem_class):
+        predicted_observables = bm.decode_batch(shots)
+        num_mistakes_bm = np.sum(np.any(predicted_observables != observables, axis=1))
+        assert num_mistakes_bm == 7
+
+    for bm in (bm_circuit_init, bm_circuit_class):
+        num_mistakes_bm = 0
+        for i in range(shots.shape[0]):
+            predicted_obs_bm = bm.decode(shots[i, :])
+            actual_obs = observables[i, :]
+            num_mistakes_bm += not np.array_equal(actual_obs, predicted_obs_bm)
+        assert num_mistakes_bm == 7
 
 
 def generate_trivial_circuit_task():
