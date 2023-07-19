@@ -1,6 +1,6 @@
 # BeliefMatching
 
-An implementation of the [belief-matching](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.031007) decoder, using 
+An implementation of the [belief-matching](https://arxiv.org/abs/2203.04948) decoder, using 
 [pymatching](https://github.com/oscarhiggott/PyMatching) for the minimum-weight perfect matching (MWPM) subroutine and 
 the [ldpc](https://pypi.org/project/ldpc/) library for the belief propagation (BP) subroutine.
 Belief-matching is more accurate than the MWPM decoder alone when hyperedge error mechanisms are present in the error 
