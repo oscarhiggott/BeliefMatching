@@ -46,17 +46,24 @@ circuit = stim.Circuit.generated(
     after_reset_flip_probability=p,
     after_clifford_depolarization=p
 )
-dem = circuit.detector_error_model(decompose_errors=True)
 
 sampler = circuit.compile_detector_sampler()
 shots, observables = sampler.sample(num_shots, separate_observables=True)
 
-bm = BeliefMatching(dem, max_bp_iters=20)
+bm = BeliefMatching(circuit, max_bp_iters=20)
 
 predicted_observables = bm.decode_batch(shots)
 num_mistakes = np.sum(np.any(predicted_observables != observables, axis=1))
 
 print(f"{num_mistakes}/{num_shots}")  # prints 4/100
+```
+
+Note that, as well as loading directly from a `stim.Circuit` as above, you can also 
+load from a `stim.DetectorErrorModel`. When using this option it is important that 
+`decompose_errors=True` is set when calling `circuit.detector_error_model`. E.g.:
+```python
+dem = circuit.detector_error_model(decompose_errors=True)
+bm = BeliefMatching(dem, max_bp_iters=20)
 ```
 
 ### Sinter integration

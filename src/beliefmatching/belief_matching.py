@@ -94,6 +94,11 @@ def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemM
             e_dets = frozenset(detectors[i])
             e_obs = frozenset(observables[i])
 
+            if len(e_dets) > 2:
+                raise ValueError("A hyperedge error mechanism was found that was not decomposed into edges. This can "
+                                 "happen if you do not set `decompose_errors=True` as required when "
+                                 "calling `circuit.detector_error_model`.")
+
             if e_dets not in edge_ids:
                 edge_ids[e_dets] = len(edge_ids)
             eid = edge_ids[e_dets]
