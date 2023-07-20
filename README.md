@@ -20,6 +20,10 @@ for belief-matching in the appendix of [this paper](https://arxiv.org/abs/2207.0
 
 To install beliefmatching, run:
 ```shell
+pip install beliefmatching
+```
+To install from source, run:
+```shell
 pip install -e .
 ```
 from the root directory.
