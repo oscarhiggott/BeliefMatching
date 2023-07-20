@@ -5,8 +5,7 @@ An implementation of the [belief-matching](https://arxiv.org/abs/2203.04948) dec
 the [ldpc](https://pypi.org/project/ldpc/) library for the belief propagation (BP) subroutine.
 Belief-matching is more accurate than the MWPM decoder alone when hyperedge error mechanisms are present in the error 
 model.
-Belief matching algorithm has the same worst-case complexity as minimum-weight perfect matching, and the average 
-expected complexity is roughly linear in the size of the decoding problem (Tanner graph).
+Belief-matching has the same worst-case complexity as minimum-weight perfect matching, and the expected running time is roughly linear in the size of the decoding problem (Tanner graph).
 See the [paper](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.031007) for more details.
 
 However, note that this implementation is much (>100x) slower than just using the pymatching (v2) 
@@ -86,8 +85,9 @@ samples = sinter.collect(
 )
 ```
 
-A complete example using sinter (including the definition of `generate_example_tasks` and plotting) can be found in the 
-`examples/surface_code_threshold.py` file.
+A complete example using sinter to compare beliefmatching with pymatching
+can be found in the `examples/surface_code_threshold.py` file (this file also 
+includes a definition of `generate_example_tasks()` used above).
 
 
 ## Tests
