@@ -58,7 +58,10 @@ class DemMatrices:
     priors: np.ndarray
 
 
-def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemMatrices:
+def detector_error_model_to_check_matrices(
+        dem: stim.DetectorErrorModel,
+        allow_undecomposed_hyperedges: bool = False
+) -> DemMatrices:
     """
     Convert a `stim.DetectorErrorModel` into a `DemMatrices` object.
 
@@ -66,6 +69,10 @@ def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemM
     ----------
     dem : stim.DetectorErrorModel
         A stim DetectorErrorModel
+    allow_undecomposed_hyperedges: bool
+        If True, don't raise an exception if a hyperedge is not decomposable. Instead, the hyperedge `h` is still added
+        to the `DemMatrices.check_matrix`, `DemMatrices.observables_matrix` and `DemMatrices.priors` but it will not
+        have any edges in its decomposition in `DemMatrices.hyperedge_to_edge_matrix[:, h]`.
     Returns
     -------
     DemMatrices
@@ -95,9 +102,12 @@ def detector_error_model_to_check_matrices(dem: stim.DetectorErrorModel) -> DemM
             e_obs = frozenset(observables[i])
 
             if len(e_dets) > 2:
-                raise ValueError("A hyperedge error mechanism was found that was not decomposed into edges. This can "
-                                 "happen if you do not set `decompose_errors=True` as required when "
-                                 "calling `circuit.detector_error_model`.")
+                if not allow_undecomposed_hyperedges:
+                    raise ValueError("A hyperedge error mechanism was found that was not decomposed into edges. "
+                                     "This can happen if you do not set `decompose_errors=True` as required when "
+                                     "calling `circuit.detector_error_model`.")
+                else:
+                    continue
 
             if e_dets not in edge_ids:
                 edge_ids[e_dets] = len(edge_ids)
