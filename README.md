@@ -1,5 +1,7 @@
 # BeliefMatching
 
+[![PyPI version](https://badge.fury.io/py/beliefmatching.svg)](https://badge.fury.io/py/beliefmatching)
+
 An implementation of the [belief-matching](https://arxiv.org/abs/2203.04948) decoder, using 
 [pymatching](https://github.com/oscarhiggott/PyMatching) for the minimum-weight perfect matching (MWPM) subroutine and 
 the [ldpc](https://pypi.org/project/ldpc/) library for the belief propagation (BP) subroutine.
