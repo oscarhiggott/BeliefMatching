@@ -110,7 +110,7 @@ pytest tests
 
 ## Attribution
 
-When using this `beliefmatching` for research, please cite 
+When using `beliefmatching` for research, please cite 
 the [paper](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.031007):
 ```
 @article{PhysRevX.13.031007,
