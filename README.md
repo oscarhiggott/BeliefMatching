@@ -74,7 +74,7 @@ bm = BeliefMatching(dem, max_bp_iters=20)
 ### Sinter integration
 
 To integrate with [sinter](https://github.com/quantumlib/Stim/tree/main/glue/sample), you can use the 
-`sinter.BeliefMatchingSinterDecoder` class, which inherits from `sinter.Decoder`.
+`beliefmatching.BeliefMatchingSinterDecoder` class, which inherits from `sinter.Decoder`.
 To use it, you can use the `custom_decoders` argument when using `sinter.collect`:
 
 ```python
