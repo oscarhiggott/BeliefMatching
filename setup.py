@@ -17,5 +17,11 @@ setup(
     long_description_content_type="text/markdown",
     package_dir={"": "src"},
     author="Oscar Higgott",
-    install_requires=["stim", "pymatching>=2.0.1", "ldpc", "sinter>=1.11"],
+    install_requires=[
+        "stim",
+        "pymatching>=2.0.1",
+        "ldpc",
+        "sinter>=1.11",
+        "numpy<=2.2.6",
+    ],
 )
