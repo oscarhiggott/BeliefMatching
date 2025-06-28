@@ -1,6 +1,18 @@
 from typing import List, FrozenSet, Dict, Tuple, Union
 from dataclasses import dataclass
 
+try:
+    from ldpc import BpDecoder
+
+    def create_decoder(pcm, priors, **kwargs):
+        return BpDecoder(pcm=pcm, error_channel=list(priors), **kwargs)
+except ImportError:
+    from ldpc import bp_decoder
+
+    def create_decoder(pcm, priors, **kwargs):
+        return bp_decoder(parity_check_matrix=pcm, channel_probs=priors, **kwargs)
+
+
 from ldpc import bp_decoder
 from scipy.sparse import csc_matrix
 import numpy as np
@@ -17,7 +29,9 @@ def iter_set_xor(set_list: List[List[int]]) -> FrozenSet[int]:
     return frozenset(out)
 
 
-def dict_to_csc_matrix(elements_dict: Dict[int, FrozenSet[int]], shape: Tuple[int, int]) -> csc_matrix:
+def dict_to_csc_matrix(
+    elements_dict: Dict[int, FrozenSet[int]], shape: Tuple[int, int]
+) -> csc_matrix:
     """
     Constructs a `scipy.sparse.csc_matrix` check matrix from a dictionary `elements_dict` giving the indices of nonzero
     rows in each column.
@@ -59,8 +73,7 @@ class DemMatrices:
 
 
 def detector_error_model_to_check_matrices(
-        dem: stim.DetectorErrorModel,
-        allow_undecomposed_hyperedges: bool = False
+    dem: stim.DetectorErrorModel, allow_undecomposed_hyperedges: bool = False
 ) -> DemMatrices:
     """
     Convert a `stim.DetectorErrorModel` into a `DemMatrices` object.
@@ -85,7 +98,9 @@ def detector_error_model_to_check_matrices(
     priors_dict: Dict[int, float] = {}
     hyperedge_to_edge: Dict[int, FrozenSet[int]] = {}
 
-    def handle_error(prob: float, detectors: List[List[int]], observables: List[List[int]]) -> None:
+    def handle_error(
+        prob: float, detectors: List[List[int]], observables: List[List[int]]
+    ) -> None:
         hyperedge_dets = iter_set_xor(detectors)
         hyperedge_obs = iter_set_xor(observables)
 
@@ -103,9 +118,11 @@ def detector_error_model_to_check_matrices(
 
             if len(e_dets) > 2:
                 if not allow_undecomposed_hyperedges:
-                    raise ValueError("A hyperedge error mechanism was found that was not decomposed into edges. "
-                                     "This can happen if you do not set `decompose_errors=True` as required when "
-                                     "calling `circuit.detector_error_model`.")
+                    raise ValueError(
+                        "A hyperedge error mechanism was found that was not decomposed into edges. "
+                        "This can happen if you do not set `decompose_errors=True` as required when "
+                        "calling `circuit.detector_error_model`."
+                    )
                 else:
                     continue
 
@@ -139,33 +156,42 @@ def detector_error_model_to_check_matrices(
             pass
         else:
             raise NotImplementedError()
-    check_matrix = dict_to_csc_matrix({v: k for k, v in hyperedge_ids.items()},
-                                      shape=(dem.num_detectors, len(hyperedge_ids)))
-    observables_matrix = dict_to_csc_matrix(hyperedge_obs_map, shape=(dem.num_observables, len(hyperedge_ids)))
+    check_matrix = dict_to_csc_matrix(
+        {v: k for k, v in hyperedge_ids.items()},
+        shape=(dem.num_detectors, len(hyperedge_ids)),
+    )
+    observables_matrix = dict_to_csc_matrix(
+        hyperedge_obs_map, shape=(dem.num_observables, len(hyperedge_ids))
+    )
     priors = np.zeros(len(hyperedge_ids))
     for i, p in priors_dict.items():
         priors[i] = p
-    hyperedge_to_edge_matrix = dict_to_csc_matrix(hyperedge_to_edge, shape=(len(edge_ids), len(hyperedge_ids)))
-    edge_check_matrix = dict_to_csc_matrix({v: k for k, v in edge_ids.items()},
-                                           shape=(dem.num_detectors, len(edge_ids)))
-    edge_observables_matrix = dict_to_csc_matrix(edge_obs_map, shape=(dem.num_observables, len(edge_ids)))
+    hyperedge_to_edge_matrix = dict_to_csc_matrix(
+        hyperedge_to_edge, shape=(len(edge_ids), len(hyperedge_ids))
+    )
+    edge_check_matrix = dict_to_csc_matrix(
+        {v: k for k, v in edge_ids.items()}, shape=(dem.num_detectors, len(edge_ids))
+    )
+    edge_observables_matrix = dict_to_csc_matrix(
+        edge_obs_map, shape=(dem.num_observables, len(edge_ids))
+    )
     return DemMatrices(
         check_matrix=check_matrix,
         observables_matrix=observables_matrix,
         edge_check_matrix=edge_check_matrix,
         edge_observables_matrix=edge_observables_matrix,
         hyperedge_to_edge_matrix=hyperedge_to_edge_matrix,
-        priors=priors
+        priors=priors,
     )
 
 
 class BeliefMatching:
     def __init__(
-            self,
-            model: Union[stim.Circuit, stim.DetectorErrorModel],
-            max_bp_iters: int = 20,
-            bp_method: str = "product_sum",
-            **kwargs
+        self,
+        model: Union[stim.Circuit, stim.DetectorErrorModel],
+        max_bp_iters: int = 20,
+        bp_method: str = "product_sum",
+        **kwargs,
     ):
         """
         Construct a BeliefMatching object from a `stim.Circuit` or `stim.DetectorErrorModel`
@@ -192,39 +218,36 @@ class BeliefMatching:
         if isinstance(model, stim.Circuit):
             model = model.detector_error_model(decompose_errors=True)
         self._initialise_from_detector_error_model(
-            model=model,
-            max_bp_iters=max_bp_iters,
-            bp_method=bp_method,
-            **kwargs
+            model=model, max_bp_iters=max_bp_iters, bp_method=bp_method, **kwargs
         )
 
     def _initialise_from_detector_error_model(
-            self,
-            model: stim.DetectorErrorModel,
-            *,
-            max_bp_iters: int = 20,
-            bp_method: str = "product_sum",
-            **kwargs
-            ):
+        self,
+        model: stim.DetectorErrorModel,
+        *,
+        max_bp_iters: int = 20,
+        bp_method: str = "product_sum",
+        **kwargs,
+    ):
         self._model = model
         self._matrices = detector_error_model_to_check_matrices(self._model)
-        self._bpd = bp_decoder(
-            self._matrices.check_matrix,
+        self._bpd = create_decoder(
+            pcm=self._matrices.check_matrix,
+            priors=self._matrices.priors,
             max_iter=max_bp_iters,
             bp_method=bp_method,
-            channel_probs=self._matrices.priors,
             input_vector_type="syndrome",
-            **kwargs
+            **kwargs,
         )
 
     @classmethod
     def from_detector_error_model(
-            cls,
-            model: stim.DetectorErrorModel,
-            *,
-            max_bp_iters: int = 20,
-            bp_method: str = "product_sum",
-            **kwargs
+        cls,
+        model: stim.DetectorErrorModel,
+        *,
+        max_bp_iters: int = 20,
+        bp_method: str = "product_sum",
+        **kwargs,
     ) -> "BeliefMatching":
         """
         Construct a BeliefMatching object from a `stim.DetectorErrorModel`
@@ -254,21 +277,18 @@ class BeliefMatching:
         """
         bm = cls.__new__(cls)
         bm._initialise_from_detector_error_model(
-            model=model,
-            max_bp_iters=max_bp_iters,
-            bp_method=bp_method,
-            **kwargs
+            model=model, max_bp_iters=max_bp_iters, bp_method=bp_method, **kwargs
         )
         return bm
 
     @classmethod
     def from_stim_circuit(
-            cls,
-            circuit: stim.Circuit,
-            *,
-            max_bp_iters: int = 20,
-            bp_method: str = "product_sum",
-            **kwargs
+        cls,
+        circuit: stim.Circuit,
+        *,
+        max_bp_iters: int = 20,
+        bp_method: str = "product_sum",
+        **kwargs,
     ) -> "BeliefMatching":
         """
         Construct a BeliefMatching object from a `stim.Circuit`
@@ -298,10 +318,7 @@ class BeliefMatching:
         bm = cls.__new__(cls)
         model = circuit.detector_error_model(decompose_errors=True)
         bm._initialise_from_detector_error_model(
-            model=model,
-            max_bp_iters=max_bp_iters,
-            bp_method=bp_method,
-            **kwargs
+            model=model, max_bp_iters=max_bp_iters, bp_method=bp_method, **kwargs
         )
         return bm
 
@@ -336,7 +353,7 @@ class BeliefMatching:
             self._matrices.edge_check_matrix,
             weights=-np.log(ps_e),
             faults_matrix=self._matrices.edge_observables_matrix,
-            use_virtual_boundary_node=True
+            use_virtual_boundary_node=True,
         )
         return matching.decode(syndrome)
 
@@ -357,7 +374,9 @@ class BeliefMatching:
             A 2D numpy array `predictions` of dtype bool, where `predictions[i, :]` is the output of
             `self.decode(shots[i, :])`.
         """
-        predictions = np.zeros((shots.shape[0], self._matrices.observables_matrix.shape[0]), dtype=bool)
+        predictions = np.zeros(
+            (shots.shape[0], self._matrices.observables_matrix.shape[0]), dtype=bool
+        )
         for i in range(shots.shape[0]):
             predictions[i, :] = self.decode(shots[i, :])
         return predictions

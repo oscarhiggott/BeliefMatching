@@ -17,11 +17,11 @@ def generate_example_tasks():
                     after_reset_flip_probability=p,
                     before_measure_flip_probability=p,
                     before_round_data_depolarization=p,
-                    code_task=f'surface_code:rotated_memory_x',
+                    code_task="surface_code:rotated_memory_x",
                 ),
                 json_metadata={
-                    'p': p,
-                    'd': d,
+                    "p": p,
+                    "d": d,
                 },
             )
 
@@ -33,9 +33,9 @@ def main():
         max_shots=1_000_000,
         max_errors=1000,
         tasks=generate_example_tasks(),
-        decoders=['beliefmatching'],
-        custom_decoders={'beliefmatching': BeliefMatchingSinterDecoder()},
-        print_progress=True
+        decoders=["beliefmatching"],
+        custom_decoders={"beliefmatching": BeliefMatchingSinterDecoder()},
+        print_progress=True,
     )
 
     # Also collect samples for pymatching, for comparison. Since pymatching is much faster we will
@@ -45,8 +45,8 @@ def main():
         max_shots=10_000_000,
         max_errors=10_000,
         tasks=generate_example_tasks(),
-        decoders=['pymatching'],
-        print_progress=True
+        decoders=["pymatching"],
+        print_progress=True,
     )
     # Plot the data
     fig, ax = plt.subplots(1, 1)
@@ -54,16 +54,16 @@ def main():
         ax=ax,
         stats=samples,
         group_func=lambda stat: f"{stat.decoder}, d={stat.json_metadata['d']}",
-        x_func=lambda stat: stat.json_metadata['p'],
+        x_func=lambda stat: stat.json_metadata["p"],
     )
     ax.loglog()
     ax.grid()
-    ax.set_title('Logical Error Rate vs Physical Error Rate')
-    ax.set_ylabel('Logical Error Probability (per shot)')
-    ax.set_xlabel('Physical Error Rate')
+    ax.set_title("Logical Error Rate vs Physical Error Rate")
+    ax.set_ylabel("Logical Error Probability (per shot)")
+    ax.set_xlabel("Physical Error Rate")
     ax.legend()
     plt.show()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

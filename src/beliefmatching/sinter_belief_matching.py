@@ -7,20 +7,21 @@ import stim
 
 
 class BeliefMatchingSinterDecoder(Decoder):
-
-    def __init__(self, max_bp_iters: int = 20):
+    def __init__(self, max_bp_iters: int = 20, **kwargs):
         self.max_bp_iters = max_bp_iters
+        self.kwargs = kwargs
 
-    def decode_via_files(self,
-                         *,
-                         num_shots: int,
-                         num_dets: int,
-                         num_obs: int,
-                         dem_path: pathlib.Path,
-                         dets_b8_in_path: pathlib.Path,
-                         obs_predictions_b8_out_path: pathlib.Path,
-                         tmp_dir: pathlib.Path,
-                         ) -> None:
+    def decode_via_files(
+        self,
+        *,
+        num_shots: int,
+        num_dets: int,
+        num_obs: int,
+        dem_path: pathlib.Path,
+        dets_b8_in_path: pathlib.Path,
+        obs_predictions_b8_out_path: pathlib.Path,
+        tmp_dir: pathlib.Path,
+    ) -> None:
         """Performs decoding by reading problems from, and writing solutions to, file paths.
         Args:
             num_shots: The number of times the circuit was sampled. The number of problems
@@ -51,9 +52,17 @@ class BeliefMatchingSinterDecoder(Decoder):
                 via sinter deleting this directory after killing the decoder.
         """
         dem = stim.DetectorErrorModel.from_file(dem_path)
-        bm = BeliefMatching(dem, max_bp_iters=self.max_bp_iters)
-        shots = stim.read_shot_data_file(path=dets_b8_in_path, format="b8", num_detectors=dem.num_detectors,
-                                         bit_packed=False)
+        bm = BeliefMatching(dem, max_bp_iters=self.max_bp_iters, **self.kwargs)
+        shots = stim.read_shot_data_file(
+            path=dets_b8_in_path,
+            format="b8",
+            num_detectors=dem.num_detectors,
+            bit_packed=False,
+        )
         predictions = bm.decode_batch(shots)
-        stim.write_shot_data_file(data=predictions, path=obs_predictions_b8_out_path, format="b8",
-                                  num_observables=dem.num_observables)
+        stim.write_shot_data_file(
+            data=predictions,
+            path=obs_predictions_b8_out_path,
+            format="b8",
+            num_observables=dem.num_observables,
+        )
